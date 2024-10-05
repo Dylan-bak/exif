@@ -1,29 +1,12 @@
 'use client';
 
 import { useState, type ChangeEvent, type FormEvent } from 'react';
+import type { Exif } from 'exif-reader';
 
-interface ExifData {
-  Image: {
-    Make: string;
-    Model: string;
-    DateTime: string;
-    [key: string]: any;
-  };
-  Photo: {
-    ExposureTime: number;
-    FNumber: number;
-    ISOSpeedRatings: number;
-    DateTimeOriginal: string;
-    DateTimeDigitized: string;
-    [key: string]: any;
-  };
-  [key: string]: any;
-}
 export default function IndexPage() {
   const [dateTaken, setDateTaken] = useState<string>('');
   const [file, setFile] = useState<File>();
-  const [exifData, setExifData] = useState<ExifData>({});
-  const [updatedExifData, setUpdatedExifData] = useState<ExifData>({});
+  const [exifData, setExifData] = useState<Exif>();
   const [dateInput, setDateInput] = useState<string>('');
 
   const handleFileChange = async (event: ChangeEvent<HTMLInputElement>) => {
@@ -38,8 +21,9 @@ export default function IndexPage() {
     try {
       const response = await fetch('/api/image/metadata/info', { method: 'POST', body: formData });
       if (response.ok) {
-        const data: ExifData = await response.json();
-        setExifData(data);
+        const _exifData: Exif = await response.json();
+        console.log('_exifData', _exifData);
+        setExifData(_exifData);
       } else {
         console.error('Failed to fetch EXIF data');
       }
@@ -80,64 +64,40 @@ export default function IndexPage() {
     }
   };
 
+  const ExifDisplay: React.FC<{ data: any; depth?: number }> = ({ data, depth = 0 }) => {
+    if (typeof data !== 'object' || data === null) JSON.stringify(data);
+    const makeChildren = (value: unknown) => {
+      if (typeof value === 'object' && value !== null) {
+        return <ExifDisplay data={value} depth={depth + 1} />;
+      } else {
+        return JSON.stringify(value);
+      }
+    };
+    return (
+      <ul className={`${depth > 0 ? 'ml-4' : ''}`}>
+        {Object.entries(data).map(([key, value]) => (
+          <li key={key}>
+            <strong>{key}:</strong>
+            {makeChildren(value)}
+          </li>
+        ))}
+      </ul>
+    );
+  };
+
   return (
     <div className="h-full w-full px-8 pb-8">
       <form onSubmit={(event) => handleSubmit(event)}>
-        <input type="file" accept="image/*" onChange={handleFileChange} />
-        <input type="date" value={dateInput} onChange={(e) => setDateInput(e.target.value)} required />
+        <input type="file" accept="image/*" onChange={(event) => handleFileChange(event)} />
+        <input type="date" value={dateInput} onChange={(event) => setDateInput(event.target.value)} required />
         <button type="submit" disabled={!file}>
           Update Metadata and Download
         </button>
       </form>
       <div>
         <h3>Original EXIF Data:</h3>
-        <h4>Image Information:</h4>
-        <ul>
-          <li>Make: {exifData.Image?.Make}</li>
-          <li>Model: {exifData.Image?.Model}</li>
-          <li>Date/Time: {exifData.Image?.DateTime}</li>
-          {exifData.Image &&
-            Object.entries(exifData.Image).map(
-              ([key, value]) =>
-                key !== 'Make' &&
-                key !== 'Model' &&
-                key !== 'DateTime' && (
-                  <li key={key}>
-                    {key}: {JSON.stringify(value)}
-                  </li>
-                )
-            )}
-        </ul>
-        <h4>Photo Information:</h4>
-        <ul>
-          <li>Exposure Time: {exifData.Photo?.ExposureTime}</li>
-          <li>F-Number: {exifData.Photo?.FNumber}</li>
-          <li>ISO Speed Ratings: {exifData.Photo?.ISOSpeedRatings}</li>
-          <li>Original Date/Time: {exifData.Photo?.DateTimeOriginal}</li>
-          <li>Digitized Date/Time: {exifData.Photo?.DateTimeDigitized}</li>
-          {exifData.Photo &&
-            Object.entries(exifData.Photo).map(
-              ([key, value]) =>
-                !['ExposureTime', 'FNumber', 'ISOSpeedRatings', 'DateTimeOriginal', 'DateTimeDigitized'].includes(
-                  key
-                ) && (
-                  <li key={key}>
-                    {key}: {JSON.stringify(value)}
-                  </li>
-                )
-            )}
-        </ul>
+        {exifData && <ExifDisplay data={exifData} />}
       </div>
-      {Object.keys(updatedExifData).length > 0 && (
-        <div>
-          <h3>Updated EXIF Data:</h3>
-          {Object.entries(updatedExifData).map(([key, value]) => (
-            <p key={key}>
-              {key}: {value}
-            </p>
-          ))}
-        </div>
-      )}
     </div>
   );
 }
