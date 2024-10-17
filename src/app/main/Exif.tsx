@@ -34,15 +34,14 @@ export default function IndexPage() {
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (!file) return;
+    if (!file || !exifData) return;
 
-    const timestamp = new Date(dateInput).getTime() / 1000;
     const formData = new FormData();
     formData.append('imageBlob', file);
-    formData.append('timestamp', timestamp.toString());
+    formData.append('exifData', JSON.stringify(exifData));
 
     try {
-      const response = await fetch('/api/image/metadata', { method: 'PATCH', body: formData });
+      const response = await fetch('/api/image/metadata', { method: 'PUT', body: formData });
 
       if (response.ok) {
         const { updatedExif, imageBlob } = await response.json();
