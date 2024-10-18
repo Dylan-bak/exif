@@ -34,18 +34,20 @@ export default function IndexPage() {
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (!file || !exifData) return;
+    // if (!file || !exifData) return;
 
     const formData = new FormData();
     formData.append('imageBlob', file);
-    formData.append('exifData', JSON.stringify(exifData));
+    // formData.append('exifData', JSON.stringify(exifData));
 
     try {
       const response = await fetch('/api/image/metadata', { method: 'PUT', body: formData });
 
       if (response.ok) {
         const { updatedExif, imageBlob } = await response.json();
-        const url = URL.createObjectURL(new Blob([imageBlob]));
+        const byteArray = Buffer.from(imageBlob, 'base64');
+        const blob = new Blob([byteArray], { type: 'image/jpeg' });
+        const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.style.display = 'none';
         a.href = url;
@@ -88,7 +90,7 @@ export default function IndexPage() {
     <div className="h-full w-full px-8 pb-8">
       <form onSubmit={(event) => handleSubmit(event)}>
         <input type="file" accept="image/*" onChange={(event) => handleFileChange(event)} />
-        <input type="date" value={dateInput} onChange={(event) => setDateInput(event.target.value)} required />
+        <input type="date" value={dateInput} onChange={(event) => setDateInput(event.target.value)} />
         <button type="submit" disabled={!file}>
           Update Metadata and Download
         </button>
