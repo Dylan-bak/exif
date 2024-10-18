@@ -65,7 +65,7 @@ export default function IndexPage() {
     }
   };
 
-  const ExifDisplay: React.FC<{ data: any; depth?: number }> = ({ data, depth = 0 }) => {
+  const ExifDisplay = ({ data, depth = 0 }: { data: any; depth?: number }) => {
     if (typeof data !== 'object' || data === null) JSON.stringify(data);
     const makeChildren = (value: unknown) => {
       if (typeof value === 'object' && value !== null) {
