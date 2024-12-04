@@ -27,9 +27,11 @@ export async function PUT(request: Request) {
           const objValue = obj[key];
           if (typeof objValue === 'number') {
             obj[key] = String(objValue);
+          } else if (Array.isArray(objValue)) {
+            obj[key] = objValue.map((charCode: string) => String.fromCharCode(Number(charCode))).join('');
           } else if (typeof objValue === 'object' && objValue !== null) {
             if (objValue.type == 'Buffer' && Array.isArray(objValue.data)) {
-              obj[key] = objValue.data.map((charCode: string) => String.fromCharCode(Number(charCode))).join(' ');
+              obj[key] = objValue.data.map((charCode: string) => String.fromCharCode(Number(charCode))).join('');
             } else {
               convertExifReaderToShapExif(obj[key]);
             }
@@ -58,9 +60,8 @@ export async function PUT(request: Request) {
     const sharpData0 = sharpList[0];
     const sharpData1 = sharpList[1];
     const { LensSpecification, RecommendedExposureIndex, ...IFD2 } = exifFromReaderList[1].IFD2;
-    const lensSpecification = LensSpecification.map((value: string) => `${value}`).join(' ');
-
-    const recommendedExposureIndex = RecommendedExposureIndex.split('').map((char: string) => char.charCodeAt(0));
+    // const lensSpecification = LensSpecification.map((value: string) => `${value}`).join(' ');
+    // const recommendedExposureIndex = RecommendedExposureIndex.split('').map((char: string) => char.charCodeAt(0));
 
     const updatedBuffer = await sharpData0
       ?.withMetadata({ density: 320, orientation: 1 })
@@ -72,8 +73,6 @@ export async function PUT(request: Request) {
         },
         IFD2: {
           ...IFD2,
-          LensSpecification: lensSpecification,
-          RecommendedExposureIndex: recommendedExposureIndex,
           DateTimeOriginal: '2024:10:06 17:13:47',
           DateTimeDigitized: '2024:10:06 17:13:47',
         },
