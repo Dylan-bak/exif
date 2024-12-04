@@ -4,26 +4,26 @@ import { useState, type ChangeEvent, type FormEvent } from 'react';
 import type { Exif } from 'exif-reader';
 
 export default function IndexPage() {
-  const [dateTaken, setDateTaken] = useState<string>('');
-  const [file, setFile] = useState<File>();
-  const [exifData, setExifData] = useState<Exif>();
+  const [fileList, setFileList] = useState<Array<File>>([]);
+  const [exifList, setExifList] = useState<Array<Exif>>([]);
   const [dateInput, setDateInput] = useState<string>('');
 
-  const handleFileChange = async (event: ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = async (event: ChangeEvent<HTMLInputElement>, index: number) => {
     const { files } = event.target;
-    const _file = files && files[0];
-    if (!_file) return;
-    setFile(_file);
+    const file = files && files[0];
+    if (!file) return;
+    fileList[index] = file;
+    setFileList([...fileList]);
 
     const formData = new FormData();
-    formData.append('imageBlob', _file);
+    formData.append('imageBlob', file);
 
     try {
       const response = await fetch('/api/image/metadata/info', { method: 'POST', body: formData });
       if (response.ok) {
-        const _exifData: Exif = await response.json();
-        console.log('_exifData', _exifData);
-        setExifData(_exifData);
+        const exif: Exif = await response.json();
+        exifList[index] = exif;
+        setExifList([...exifList]);
       } else {
         console.error('Failed to fetch EXIF data');
       }
@@ -34,11 +34,25 @@ export default function IndexPage() {
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    // if (!file || !exifData) return;
+    if (!fileList || !exifList) return;
 
     const formData = new FormData();
-    formData.append('imageBlob', file);
-    // formData.append('exifData', JSON.stringify(exifData));
+    formData.append(`length`, String(fileList.length));
+    fileList.forEach((file, index) => formData.append(`imageBlob${index}`, file));
+    exifList.forEach((exif, index) => {
+      if (!exif) return;
+
+      const Image = exif.Image;
+      debugger;
+      // && exif.Image.map((item) => { });
+      const Photo = exif.Photo;
+
+      const sharpData = {
+        IFD0: { ...Image },
+        IFD2: { ...Photo },
+      };
+      formData.append(`exif${index}`, JSON.stringify(sharpData));
+    });
 
     try {
       const response = await fetch('/api/image/metadata', { method: 'PUT', body: formData });
@@ -51,7 +65,7 @@ export default function IndexPage() {
         const a = document.createElement('a');
         a.style.display = 'none';
         a.href = url;
-        a.download = 'updated_image.jpg';
+        a.download = 'updated_image.png';
         document.body.appendChild(a);
         a.click();
         URL.revokeObjectURL(url);
@@ -66,7 +80,7 @@ export default function IndexPage() {
   };
 
   const ExifDisplay = ({ data, depth = 0 }: { data: any; depth?: number }) => {
-    if (typeof data !== 'object' || data === null) JSON.stringify(data);
+    if (typeof data !== 'object' || data === null || !data) JSON.stringify(data);
     const makeChildren = (value: unknown) => {
       if (typeof value === 'object' && value !== null) {
         return <ExifDisplay data={value} depth={depth + 1} />;
@@ -76,12 +90,13 @@ export default function IndexPage() {
     };
     return (
       <ul className={`${depth > 0 ? 'ml-4' : ''}`}>
-        {Object.entries(data).map(([key, value]) => (
-          <li key={key}>
-            <strong>{key}:</strong>
-            {makeChildren(value)}
-          </li>
-        ))}
+        {data &&
+          Object.entries(data).map(([key, value]) => (
+            <li key={key}>
+              <strong>{key}:</strong>
+              {makeChildren(value)}
+            </li>
+          ))}
       </ul>
     );
   };
@@ -89,15 +104,17 @@ export default function IndexPage() {
   return (
     <div className="h-full w-full px-8 pb-8">
       <form onSubmit={(event) => handleSubmit(event)}>
-        <input type="file" accept="image/*" onChange={(event) => handleFileChange(event)} />
+        <input type="file" accept="image/*" onChange={(event) => handleFileChange(event, 0)} />
+        <input type="file" accept="image/*" onChange={(event) => handleFileChange(event, 1)} />
+
         <input type="date" value={dateInput} onChange={(event) => setDateInput(event.target.value)} />
-        <button type="submit" disabled={!file}>
+        <button type="submit" disabled={!fileList}>
           Update Metadata and Download
         </button>
       </form>
       <div>
         <h3>Original EXIF Data:</h3>
-        {exifData && <ExifDisplay data={exifData} />}
+        {exifList && <ExifDisplay data={exifList[0]} />}
       </div>
     </div>
   );
